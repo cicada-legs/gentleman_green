@@ -5,6 +5,7 @@ use aes_gcm_siv::aead::Aead;
 use aes_gcm_siv::{Aes256GcmSiv, KeyInit, Nonce};
 use crossterm::event::{poll, read, Event, KeyCode};
 use crossterm::terminal::enable_raw_mode;
+use dialog::{backends::Zenity, DialogBox};
 use eframe::egui;
 use hex;
 use rand_chacha::rand_core::{RngCore, SeedableRng};
@@ -57,44 +58,18 @@ fn main() {
         //FIXME: thisis the popup stage
         println!("Enter decryption key pls: ");
         io::stdin().read_line(&mut user_input).unwrap();
-        let user_input_bytes = user_input.as_bytes(); //convert to bytes
+        let user_input_str = user_input.trim(); //convert to bytes
 
-        //TODO: UP TO HERE TODAY
         //key length 32, nonce length 12
-        if user_input_bytes.len() != 32 {
+        if user_input_str.len() != 64 {
+            //64 because it's in hex
             //print error
-            println!("Invalid key length");
+            println!("Invalid key length: {}", user_input_str.len());
         } else {
-            // //FIXME: convert byte array into key format why this no work
-            // //WHY THIS NO WORK
-            // let user_key = GenericArray::clone_from_slice(&user_input_bytes[0..32]);
-            // //decrypt using the key
-            // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
+            let user_input_bytes = hex::decode(user_input_str).unwrap().to_owned();
+
+            let decrypt_key = GenericArray::clone_from_slice(&user_input_bytes.as_slice());
         }
-    }
-}
-
-/**
- * check if the required resources are installed.
- * if not, install them
- */
-fn check_requirements() {
-    let cmd = Command::new("sh")
-        .arg("-c")
-        .arg("zenity")
-        .output()
-        .expect("zenity not installed");
-
-    if !cmd.status.success() {
-        //TODO: add more prints here later maybe for useability or maybe not
-        //install zenity
-        //
-        println!("installing zenity");
-        let install_cmd: std::process::Output = Command::new("sh")
-            .arg("-c")
-            .arg("sudo apt-get install zenity")
-            .output()
-            .expect("failed to install zenity");
     }
 }
 
@@ -145,17 +120,17 @@ fn test_encryptfile() {
         let mut user_input = String::new();
         println!("Enter decryption key pls: ");
         io::stdin().read_line(&mut user_input).unwrap();
-        let user_input_bytes = user_input.as_bytes(); //convert to bytes
+        let user_input_str = user_input.as_bytes(); //convert to bytes
 
         //TODO: UP TO HERE TODAY
         //key length 32, nonce length 12
-        if user_input_bytes.len() != 32 {
+        if user_input_str.len() != 32 {
             //print error
             println!("Invalid key length");
         } else {
             // //FIXME: convert byte array into key format why this no work
             // //WHY THIS NO WORK
-            // let user_key = GenericArray::clone_from_slice(&user_input_bytes[0..32]);
+            // let user_key = GenericArray::clone_from_slice(&user_input_str[0..32]);
             // //decrypt using the key
             // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
         }
@@ -251,17 +226,17 @@ fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), Error> {
         let mut user_input = String::new();
         println!("Enter decryption key pls: ");
         io::stdin().read_line(&mut user_input).unwrap();
-        let user_input_bytes = user_input.as_bytes(); //convert to bytes
+        let user_input_str = user_input.as_bytes(); //convert to bytes
 
         //TODO: UP TO HERE TODAY
         //key length 32, nonce length 12
-        if user_input_bytes.len() != 32 {
+        if user_input_str.len() != 32 {
             //print error
             println!("Invalid key length")
         } else {
             // //FIXME: convert byte array into key format why this no work
             // //WHY THIS NO WORK
-            // let user_key = GenericArray::clone_from_slice(&user_input_bytes[0..32]);
+            // let user_key = GenericArray::clone_from_slice(&user_input_str[0..32]);
             // //decrypt using the key
             // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
         }
