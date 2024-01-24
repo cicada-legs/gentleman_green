@@ -1845,6 +1845,7 @@ dependencies = [
  "dioxus-desktop",
  "eframe",
  "egui",
+ "hex",
  "rand_chacha 0.3.1",
  "walkdir",
  "win-msgbox",
