@@ -6,6 +6,9 @@ Disclaimer:
 
 If you're seeing this repo, you're probably a potential employer. hello :D
 
+To Do:
+- [ ] rename the project. a qfff reference
+
 Current Issues:
 * implement a way to not double-encrypt things
 * add a way to reopen the terminal and enter a password if the user exits out (if check for if files are currently encrypted. same check as above)
@@ -17,3 +20,6 @@ Current Issues:
 Tips: public key to encrypt the symmetric key
 
 read into a stream instead of reading massive files
+
+//delete later
+thank you guys for telling Jim about my project. (that includes)

@@ -1,4 +1,4 @@
-// #![allow(warnings)]
+#![allow(warnings)]
 #[allow(dead_code)]
 use aes_gcm_siv::aead::generic_array::GenericArray;
 use aes_gcm_siv::aead::Aead;
@@ -17,6 +17,7 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::process::Command;
 use std::{io, path::Path};
 use walkdir::{DirEntry, Error, WalkDir};
